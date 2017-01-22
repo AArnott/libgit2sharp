@@ -851,15 +851,15 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(repoPath))
             {
                 File.WriteAllText(filePath, "first");
-                repo.Index.Add(fileName);
+                Commands.Stage(repo, fileName);
                 repo.Commit("first commit", Constants.Signature, Constants.Signature);
 
                 File.WriteAllText(filePath, "second");
-                repo.Stage(fileName);
+                Commands.Stage(repo, fileName);
                 repo.Commit("second commit", Constants.Signature, Constants.Signature);
 
                 File.WriteAllText(filePath, "third");
-                repo.Index.Add(fileName);
+                Commands.Stage(repo, fileName);
                 repo.Commit("second commit", Constants.Signature, Constants.Signature);
 
                 repo.Reset(ResetMode.Mixed, repo.Head.Commits.Skip(1).First());
