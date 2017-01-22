@@ -93,7 +93,7 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 var firstBranch = repo.CreateBranch("FirstBranch");
-                repo.Checkout(firstBranch);
+                Commands.Checkout(repo, firstBranch);
                 var originalTreeCount = firstBranch.Tip.Tree.Count;
 
                 // Commit with ONE new file to both first & second branch (SecondBranch is created on this commit).
@@ -106,11 +106,11 @@ namespace LibGit2Sharp.Tests
                 if (shouldMergeOccurInDetachedHeadState)
                 {
                     // Detaches HEAD
-                    repo.Checkout(secondBranch.Tip);
+                    Commands.Checkout(repo, secondBranch.Tip);
                 }
                 else
                 {
-                    repo.Checkout(secondBranch);
+                    Commands.Checkout(repo, secondBranch);
                 }
 
                 // Commit with ONE new file to second branch (FirstBranch and SecondBranch now point to separate commits that both have the same parent commit).
@@ -142,14 +142,14 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 var firstBranch = repo.CreateBranch("FirstBranch");
-                repo.Checkout(firstBranch);
+                Commands.Checkout(repo, firstBranch);
 
                 // Commit with ONE new file to both first & second branch (SecondBranch is created on this commit).
                 AddFileCommitToRepo(repo, sharedBranchFileName);
 
                 var secondBranch = repo.CreateBranch("SecondBranch");
 
-                repo.Checkout(secondBranch);
+                Commands.Checkout(repo, secondBranch);
 
                 MergeResult mergeResult = repo.Merge(repo.Branches["FirstBranch"].Tip, Constants.Signature);
 
@@ -175,7 +175,7 @@ namespace LibGit2Sharp.Tests
                 repo.RemoveUntrackedFiles();
 
                 var firstBranch = repo.CreateBranch("FirstBranch");
-                repo.Checkout(firstBranch);
+                Commands.Checkout(repo, firstBranch);
 
                 // Commit with ONE new file to both first & second branch (SecondBranch is created on this commit).
                 AddFileCommitToRepo(repo, sharedBranchFileName);
@@ -188,11 +188,11 @@ namespace LibGit2Sharp.Tests
                 if (shouldMergeOccurInDetachedHeadState)
                 {
                     // Detaches HEAD
-                    repo.Checkout(secondBranch.Tip);
+                    Commands.Checkout(repo, secondBranch.Tip);
                 }
                 else
                 {
-                    repo.Checkout(secondBranch);
+                    Commands.Checkout(repo, secondBranch);
                 }
 
                 Assert.Equal(shouldMergeOccurInDetachedHeadState, repo.Info.IsHeadDetached);
@@ -226,7 +226,7 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 var firstBranch = repo.CreateBranch("FirstBranch");
-                repo.Checkout(firstBranch);
+                Commands.Checkout(repo, firstBranch);
 
                 // Commit with ONE new file to both first & second branch (SecondBranch is created on this commit).
                 AddFileCommitToRepo(repo, sharedBranchFileName);
@@ -236,7 +236,7 @@ namespace LibGit2Sharp.Tests
                 AddFileCommitToRepo(repo, firstBranchFileName);
                 AddFileCommitToRepo(repo, sharedBranchFileName, "The first branches comment");  // Change file in first branch
 
-                repo.Checkout(secondBranch);
+                Commands.Checkout(repo, secondBranch);
                 // Commit with ONE new file to second branch (FirstBranch and SecondBranch now point to separate commits that both have the same parent commit).
                 AddFileCommitToRepo(repo, secondBranchFileName);
                 AddFileCommitToRepo(repo, sharedBranchFileName, "The second branches comment");  // Change file in second branch
@@ -266,7 +266,7 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 var firstBranch = repo.CreateBranch("FirstBranch");
-                repo.Checkout(firstBranch);
+                Commands.Checkout(repo, firstBranch);
 
                 // Commit with ONE new file to both first & second branch (SecondBranch is created on this commit).
                 AddFileCommitToRepo(repo, sharedBranchFileName);
@@ -276,7 +276,7 @@ namespace LibGit2Sharp.Tests
                 AddFileCommitToRepo(repo, firstBranchFileName);
                 AddFileCommitToRepo(repo, sharedBranchFileName, "\0The first branches comment\0");  // Change file in first branch
 
-                repo.Checkout(secondBranch);
+                Commands.Checkout(repo, secondBranch);
                 // Commit with ONE new file to second branch (FirstBranch and SecondBranch now point to separate commits that both have the same parent commit).
                 AddFileCommitToRepo(repo, secondBranchFileName);
                 AddFileCommitToRepo(repo, sharedBranchFileName, "\0The second branches comment\0");  // Change file in second branch
@@ -325,7 +325,7 @@ namespace LibGit2Sharp.Tests
             {
                 if(fromDetachedHead)
                 {
-                    repo.Checkout(repo.Head.Tip.Id.Sha);
+                    Commands.Checkout(repo, repo.Head.Tip.Id.Sha);
                 }
 
                 Commit commitToMerge = repo.Branches["fast_forward"].Tip;
@@ -351,7 +351,7 @@ namespace LibGit2Sharp.Tests
             {
                 if (fromDetachedHead)
                 {
-                    repo.Checkout(repo.Head.Tip.Id.Sha);
+                    Commands.Checkout(repo, repo.Head.Tip.Id.Sha);
                 }
 
                 Commit commitToMerge = repo.Branches["normal_merge"].Tip;
@@ -469,7 +469,7 @@ namespace LibGit2Sharp.Tests
             string repoPath = SandboxMergeTestRepo();
             using (var repo = new Repository(repoPath))
             {
-                Branch currentBranch = repo.Checkout("rename_source");
+                Branch currentBranch = Commands.Checkout(repo, "rename_source");
                 Assert.NotNull(currentBranch);
 
                 Branch branchToMerge = repo.Branches["rename"];
@@ -611,7 +611,7 @@ namespace LibGit2Sharp.Tests
 
                 if (shouldStage)
                 {
-                    repo.Stage("b.txt");
+                    Commands.Stage(repo, "b.txt");
                 }
 
                 Assert.Throws<CheckoutConflictException>(() => repo.Merge(committishToMerge, Constants.Signature, new MergeOptions() { FastForwardStrategy = strategy }));
@@ -678,7 +678,7 @@ namespace LibGit2Sharp.Tests
             const string conflictBranchName = "conflicts";
 
             string path = SandboxMergeTestRepo();
-            using (var repo = InitIsolatedRepository(path))
+            using (var repo = new Repository(path))
             {
                 Branch branch = repo.Branches[conflictBranchName];
                 Assert.NotNull(branch);
@@ -750,8 +750,8 @@ namespace LibGit2Sharp.Tests
                 // Remove entries from the working directory
                 foreach(var entry in repo.RetrieveStatus())
                 {
-                    repo.Unstage(entry.FilePath);
-                    repo.Remove(entry.FilePath, true);
+                    Commands.Unstage(repo, entry.FilePath);
+                    Commands.Remove(repo, entry.FilePath, true);
                 }
 
                 // Assert that we have an empty working directory.
@@ -790,7 +790,7 @@ namespace LibGit2Sharp.Tests
 
                 Touch(repo.Info.WorkingDirectory, "README", "Yeah!\n");
                 repo.Index.Clear();
-                repo.Stage("README");
+                Commands.Stage(repo, "README");
 
                 repo.Commit("A new world, free of the burden of the history", Constants.Signature, Constants.Signature);
 
@@ -869,7 +869,7 @@ namespace LibGit2Sharp.Tests
         {
             Touch(repository.Info.WorkingDirectory, filename, content);
 
-            repository.Stage(filename);
+            Commands.Stage(repository, filename);
 
             return repository.Commit("New commit", Constants.Signature, Constants.Signature);
         }

@@ -79,6 +79,7 @@ namespace LibGit2Sharp
         /// <param name="branch">The <see cref="Branch"/> to check out.</param>
         /// <param name="options"><see cref="CheckoutOptions"/> controlling checkout behavior.</param>
         /// <returns>The <see cref="Branch"/> that was checked out.</returns>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Checkout()")]
         Branch Checkout(Branch branch, CheckoutOptions options);
 
         /// <summary>
@@ -91,6 +92,7 @@ namespace LibGit2Sharp
         /// <param name="committishOrBranchSpec">A revparse spec for the commit or branch to checkout.</param>
         /// <param name="options"><see cref="CheckoutOptions"/> controlling checkout behavior.</param>
         /// <returns>The <see cref="Branch"/> that was checked out.</returns>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Checkout()")]
         Branch Checkout(string committishOrBranchSpec, CheckoutOptions options);
 
         /// <summary>
@@ -102,7 +104,16 @@ namespace LibGit2Sharp
         /// <param name="commit">The <see cref="LibGit2Sharp.Commit"/> to check out.</param>
         /// <param name="options"><see cref="CheckoutOptions"/> controlling checkout behavior.</param>
         /// <returns>The <see cref="Branch"/> that was checked out.</returns>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Checkout()")]
         Branch Checkout(Commit commit, CheckoutOptions options);
+
+        /// <summary>
+        /// Checkout the specified tree.
+        /// </summary>
+        /// <param name="tree">The <see cref="Tree"/> to checkout.</param>
+        /// <param name="paths">The paths to checkout.</param>
+        /// <param name="opts">Collection of parameters controlling checkout behavior.</param>
+        void Checkout(Tree tree, IEnumerable<string> paths, CheckoutOptions opts);
 
         /// <summary>
         /// Updates specifed paths in the index and working directory with the versions from the specified branch, reference, or SHA.
@@ -173,18 +184,6 @@ namespace LibGit2Sharp
         /// <param name="commit">The target commit object.</param>
         /// <param name="options">Collection of parameters controlling checkout behavior.</param>
         void Reset(ResetMode resetMode, Commit commit, CheckoutOptions options);
-
-        /// <summary>
-        /// Replaces entries in the <see cref="Repository.Index"/> with entries from the specified commit.
-        /// </summary>
-        /// <param name="commit">The target commit object.</param>
-        /// <param name="paths">The list of paths (either files or directories) that should be considered.</param>
-        /// <param name="explicitPathsOptions">
-        /// If set, the passed <paramref name="paths"/> will be treated as explicit paths.
-        /// Use these options to determine how unmatched explicit paths should be handled.
-        /// </param>
-        [Obsolete("This method will be removed in the next release. Please use Index.Replace() instead.")]
-        void Reset(Commit commit, IEnumerable<string> paths, ExplicitPathsOptions explicitPathsOptions);
 
         /// <summary>
         /// Clean the working tree by removing files that are not under version control.
@@ -283,6 +282,7 @@ namespace LibGit2Sharp
         /// </summary>
         /// <param name="path">The path of the file within the working directory.</param>
         /// <param name="stageOptions">Determines how paths will be staged.</param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Stage()")]
         void Stage(string path, StageOptions stageOptions);
 
         /// <summary>
@@ -292,6 +292,7 @@ namespace LibGit2Sharp
         /// </summary>
         /// <param name="paths">The collection of paths of the files within the working directory.</param>
         /// <param name="stageOptions">Determines how paths will be staged.</param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Stage()")]
         void Stage(IEnumerable<string> paths, StageOptions stageOptions);
 
         /// <summary>
@@ -302,6 +303,7 @@ namespace LibGit2Sharp
         /// The passed <paramref name="path"/> will be treated as explicit paths.
         /// Use these options to determine how unmatched explicit paths should be handled.
         /// </param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Unstage()")]
         void Unstage(string path, ExplicitPathsOptions explicitPathsOptions);
 
         /// <summary>
@@ -312,6 +314,7 @@ namespace LibGit2Sharp
         /// The passed <paramref name="paths"/> will be treated as explicit paths.
         /// Use these options to determine how unmatched explicit paths should be handled.
         /// </param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Unstage()")]
         void Unstage(IEnumerable<string> paths, ExplicitPathsOptions explicitPathsOptions);
 
         /// <summary>
@@ -319,6 +322,7 @@ namespace LibGit2Sharp
         /// </summary>
         /// <param name="sourcePath">The path of the file within the working directory which has to be moved/renamed.</param>
         /// <param name="destinationPath">The target path of the file within the working directory.</param>
+        [Obsolete("This method is deprecatd. Please use LibGit2Sharp.Commands.Move()")]
         void Move(string sourcePath, string destinationPath);
 
         /// <summary>
@@ -326,6 +330,7 @@ namespace LibGit2Sharp
         /// </summary>
         /// <param name="sourcePaths">The paths of the files within the working directory which have to be moved/renamed.</param>
         /// <param name="destinationPaths">The target paths of the files within the working directory.</param>
+        [Obsolete("This method is deprecatd. Please use LibGit2Sharp.Commands.Move()")]
         void Move(IEnumerable<string> sourcePaths, IEnumerable<string> destinationPaths);
 
         /// <summary>
@@ -349,6 +354,7 @@ namespace LibGit2Sharp
         /// The passed <paramref name="path"/> will be treated as an explicit path.
         /// Use these options to determine how unmatched explicit paths should be handled.
         /// </param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Remove()")]
         void Remove(string path, bool removeFromWorkingDirectory, ExplicitPathsOptions explicitPathsOptions);
 
         /// <summary>
@@ -372,6 +378,7 @@ namespace LibGit2Sharp
         /// The passed <paramref name="paths"/> will be treated as explicit paths.
         /// Use these options to determine how unmatched explicit paths should be handled.
         /// </param>
+        [Obsolete("This method is deprecated. Please use LibGit2Sharp.Commands.Unstage()")]
         void Remove(IEnumerable<string> paths, bool removeFromWorkingDirectory, ExplicitPathsOptions explicitPathsOptions);
 
         /// <summary>
@@ -405,5 +412,14 @@ namespace LibGit2Sharp
         /// <param name="options">Determines how the commit will be described.</param>
         /// <returns>A descriptive identifier for the commit based on the nearest annotated tag.</returns>
         string Describe(Commit commit, DescribeOptions options);
+
+        /// <summary>
+        /// Parse an extended SHA-1 expression and retrieve the object and the reference
+        /// mentioned in the revision (if any).
+        /// </summary>
+        /// <param name="revision">An extended SHA-1 expression for the object to look up</param>
+        /// <param name="reference">The reference mentioned in the revision (if any)</param>
+        /// <param name="obj">The object which the revision resolves to</param>
+        void RevParse(string revision, out Reference reference, out GitObject obj);
     }
 }

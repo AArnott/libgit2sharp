@@ -17,7 +17,7 @@ namespace LibGit2Sharp
     public class ObjectDatabase : IEnumerable<GitObject>
     {
         private readonly Repository repo;
-        private readonly ObjectDatabaseSafeHandle handle;
+        private readonly ObjectDatabaseHandle handle;
 
         /// <summary>
         /// Needed for mocking purposes.
@@ -41,11 +41,10 @@ namespace LibGit2Sharp
         /// <returns>An <see cref="IEnumerator{T}"/> object that can be used to iterate through the collection.</returns>
         public virtual IEnumerator<GitObject> GetEnumerator()
         {
-            ICollection<GitOid> oids = Proxy.git_odb_foreach(handle,
-                                                             ptr => ptr.MarshalAs<GitOid>());
+            ICollection<ObjectId> oids = Proxy.git_odb_foreach(handle);
 
             return oids
-                .Select(gitOid => repo.Lookup<GitObject>(new ObjectId(gitOid)))
+                .Select(gitOid => repo.Lookup<GitObject>(gitOid))
                 .GetEnumerator();
         }
 
@@ -179,6 +178,16 @@ namespace LibGit2Sharp
         }
 
         /// <summary>
+        /// Write an object to the object database
+        /// </summary>
+        /// <param name="data">The contents of the object</param>
+        /// <typeparam name="T">The type of object to write</typeparam>
+        public virtual ObjectId Write<T>(byte[] data) where T : GitObject
+        {
+            return Proxy.git_odb_write(handle, data, GitObject.TypeToKindMap[typeof(T)]);
+        }
+
+        /// <summary>
         /// Inserts a <see cref="Blob"/> into the object database, created from the content of a stream.
         /// <para>Optionally, git filters will be applied to the content before storing it.</para>
         /// </summary>
@@ -214,7 +223,7 @@ namespace LibGit2Sharp
             return CreateBlob(stream, hintpath, (long?)numberOfBytesToConsume);
         }
 
-        private Blob CreateBlob(Stream stream, string hintpath, long? numberOfBytesToConsume)
+        private unsafe Blob CreateBlob(Stream stream, string hintpath, long? numberOfBytesToConsume)
         {
             Ensure.ArgumentNotNull(stream, "stream");
 
@@ -229,9 +238,51 @@ namespace LibGit2Sharp
                 throw new ArgumentException("The stream cannot be read from.", "stream");
             }
 
-            var proc = new Processor(stream, numberOfBytesToConsume);
-            ObjectId id = Proxy.git_blob_create_fromchunks(repo.Handle, hintpath, proc.Provider);
+            IntPtr writestream_ptr = Proxy.git_blob_create_fromstream(repo.Handle, hintpath);
+            GitWriteStream writestream = (GitWriteStream)Marshal.PtrToStructure(writestream_ptr, typeof(GitWriteStream));
 
+            try
+            {
+                var buffer = new byte[4 * 1024];
+                long totalRead = 0;
+                int read = 0;
+
+                while (true)
+                {
+                    int toRead = numberOfBytesToConsume.HasValue ?
+                        (int)Math.Min(numberOfBytesToConsume.Value - totalRead, (long)buffer.Length) :
+                        buffer.Length;
+
+                    if (toRead > 0)
+                    {
+                        read = (toRead > 0) ? stream.Read(buffer, 0, toRead) : 0;
+                    }
+
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    fixed (byte* buffer_ptr = buffer)
+                    {
+                        writestream.write(writestream_ptr, (IntPtr)buffer_ptr, (UIntPtr)read);
+                    }
+
+                    totalRead += read;
+                }
+
+                if (numberOfBytesToConsume.HasValue && totalRead < numberOfBytesToConsume.Value)
+                {
+                    throw new EndOfStreamException("The stream ended unexpectedly");
+                }
+            }
+            catch(Exception e)
+            {
+                writestream.free(writestream_ptr);
+                throw e;
+            }
+
+            ObjectId id = Proxy.git_blob_create_fromstream_commit(writestream_ptr);
             return repo.Lookup<Blob>(id);
         }
 
@@ -372,6 +423,32 @@ namespace LibGit2Sharp
         }
 
         /// <summary>
+        /// Inserts a <see cref="Commit"/> into the object database after attaching the given signature.
+        /// </summary>
+        /// <param name="commitContent">The raw unsigned commit</param>
+        /// <param name="signature">The signature data </param>
+        /// <param name="field">The header field in the commit in which to store the signature</param>
+        /// <returns>The created <see cref="Commit"/>.</returns>
+        public virtual ObjectId CreateCommitWithSignature(string commitContent, string signature, string field)
+        {
+            return Proxy.git_commit_create_with_signature(repo.Handle, commitContent, signature, field);
+        }
+
+        /// <summary>
+        /// Inserts a <see cref="Commit"/> into the object database after attaching the given signature.
+        /// <para>
+        /// This overload uses the default header field of "gpgsig"
+        /// </para>
+        /// </summary>
+        /// <param name="commitContent">The raw unsigned commit</param>
+        /// <param name="signature">The signature data </param>
+        /// <returns>The created <see cref="Commit"/>.</returns>
+        public virtual ObjectId CreateCommitWithSignature(string commitContent, string signature)
+        {
+            return Proxy.git_commit_create_with_signature(repo.Handle, commitContent, signature, null);
+        }
+
+        /// <summary>
         /// Inserts a <see cref="TagAnnotation"/> into the object database, pointing to a specific <see cref="GitObject"/>.
         /// </summary>
         /// <param name="name">The name.</param>
@@ -462,6 +539,80 @@ namespace LibGit2Sharp
             Ensure.ArgumentNotNull(another, "another");
 
             return new HistoryDivergence(repo, one, another);
+        }
+
+        /// <summary>
+        /// Performs a cherry-pick of <paramref name="cherryPickCommit"/> onto <paramref name="cherryPickOnto"/> commit.
+        /// </summary>
+        /// <param name="cherryPickCommit">The commit to cherry-pick.</param>
+        /// <param name="cherryPickOnto">The commit to cherry-pick onto.</param>
+        /// <param name="mainline">Which commit to consider the parent for the diff when cherry-picking a merge commit.</param>
+        /// <param name="options">The options for the merging in the cherry-pick operation.</param>
+        /// <returns>A result containing a <see cref="Tree"/> if the cherry-pick was successful and a list of <see cref="Conflict"/>s if it is not.</returns>
+        public virtual MergeTreeResult CherryPickCommit(Commit cherryPickCommit, Commit cherryPickOnto, int mainline, MergeTreeOptions options)
+        {
+            Ensure.ArgumentNotNull(cherryPickCommit, "cherryPickCommit");
+            Ensure.ArgumentNotNull(cherryPickOnto, "ours");
+
+            options = options ?? new MergeTreeOptions();
+
+            // We throw away the index after looking at the conflicts, so we'll never need the REUC
+            // entries to be there
+            GitMergeFlag mergeFlags = GitMergeFlag.GIT_MERGE_NORMAL | GitMergeFlag.GIT_MERGE_SKIP_REUC;
+            if (options.FindRenames)
+            {
+                mergeFlags |= GitMergeFlag.GIT_MERGE_FIND_RENAMES;
+            }
+            if (options.FailOnConflict)
+            {
+                mergeFlags |= GitMergeFlag.GIT_MERGE_FAIL_ON_CONFLICT;
+            }
+
+
+            var opts = new GitMergeOpts
+            {
+                Version = 1,
+                MergeFileFavorFlags = options.MergeFileFavor,
+                MergeTreeFlags = mergeFlags,
+                RenameThreshold = (uint)options.RenameThreshold,
+                TargetLimit = (uint)options.TargetLimit
+            };
+
+            bool earlyStop;
+
+            using (var cherryPickOntoHandle = Proxy.git_object_lookup(repo.Handle, cherryPickOnto.Id, GitObjectType.Commit))
+            using (var cherryPickCommitHandle = Proxy.git_object_lookup(repo.Handle, cherryPickCommit.Id, GitObjectType.Commit))
+            using (var indexHandle = Proxy.git_cherrypick_commit(repo.Handle, cherryPickCommitHandle, cherryPickOntoHandle, (uint)mainline, opts, out earlyStop))
+            {
+                MergeTreeResult cherryPickResult;
+
+                // Stopped due to FailOnConflict so there's no index or conflict list
+                if (earlyStop)
+                {
+                    return new MergeTreeResult(new Conflict[] { });
+                }
+
+                if (Proxy.git_index_has_conflicts(indexHandle))
+                {
+                    List<Conflict> conflicts = new List<Conflict>();
+                    Conflict conflict;
+                    using (ConflictIteratorHandle iterator = Proxy.git_index_conflict_iterator_new(indexHandle))
+                    {
+                        while ((conflict = Proxy.git_index_conflict_next(iterator)) != null)
+                        {
+                            conflicts.Add(conflict);
+                        }
+                    }
+                    cherryPickResult = new MergeTreeResult(conflicts);
+                }
+                else
+                {
+                    var treeId = Proxy.git_index_write_tree_to(indexHandle, repo.Handle);
+                    cherryPickResult = new MergeTreeResult(this.repo.Lookup<Tree>(treeId));
+                }
+
+                return cherryPickResult;
+            }
         }
 
         /// <summary>
@@ -649,7 +800,7 @@ namespace LibGit2Sharp
                     List<Conflict> conflicts = new List<Conflict>();
                     Conflict conflict;
 
-                    using (ConflictIteratorSafeHandle iterator = Proxy.git_index_conflict_iterator_new(indexHandle))
+                    using (ConflictIteratorHandle iterator = Proxy.git_index_conflict_iterator_new(indexHandle))
                     {
                         while ((conflict = Proxy.git_index_conflict_next(iterator)) != null)
                         {
@@ -728,6 +879,80 @@ namespace LibGit2Sharp
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// Performs a revert of <paramref name="revertCommit"/> onto <paramref name="revertOnto"/> commit.
+        /// </summary>
+        /// <param name="revertCommit">The commit to revert.</param>
+        /// <param name="revertOnto">The commit to revert onto.</param>
+        /// <param name="mainline">Which commit to consider the parent for the diff when reverting a merge commit.</param>
+        /// <param name="options">The options for the merging in the revert operation.</param>
+        /// <returns>A result containing a <see cref="Tree"/> if the revert was successful and a list of <see cref="Conflict"/>s if it is not.</returns>
+        public virtual MergeTreeResult RevertCommit(Commit revertCommit, Commit revertOnto, int mainline, MergeTreeOptions options)
+        {
+            Ensure.ArgumentNotNull(revertCommit, "revertCommit");
+            Ensure.ArgumentNotNull(revertOnto, "revertOnto");
+
+            options = options ?? new MergeTreeOptions();
+
+            // We throw away the index after looking at the conflicts, so we'll never need the REUC
+            // entries to be there
+            GitMergeFlag mergeFlags = GitMergeFlag.GIT_MERGE_NORMAL | GitMergeFlag.GIT_MERGE_SKIP_REUC;
+            if (options.FindRenames)
+            {
+                mergeFlags |= GitMergeFlag.GIT_MERGE_FIND_RENAMES;
+            }
+            if (options.FailOnConflict)
+            {
+                mergeFlags |= GitMergeFlag.GIT_MERGE_FAIL_ON_CONFLICT;
+            }
+
+
+            var opts = new GitMergeOpts
+            {
+                Version = 1,
+                MergeFileFavorFlags = options.MergeFileFavor,
+                MergeTreeFlags = mergeFlags,
+                RenameThreshold = (uint)options.RenameThreshold,
+                TargetLimit = (uint)options.TargetLimit
+            };
+
+            bool earlyStop;
+
+            using (var revertOntoHandle = Proxy.git_object_lookup(repo.Handle, revertOnto.Id, GitObjectType.Commit))
+            using (var revertCommitHandle = Proxy.git_object_lookup(repo.Handle, revertCommit.Id, GitObjectType.Commit))
+            using (var indexHandle = Proxy.git_revert_commit(repo.Handle, revertCommitHandle, revertOntoHandle, (uint)mainline, opts, out earlyStop))
+            {
+                MergeTreeResult revertTreeResult;
+
+                // Stopped due to FailOnConflict so there's no index or conflict list
+                if (earlyStop)
+                {
+                    return new MergeTreeResult(new Conflict[] { });
+                }
+
+                if (Proxy.git_index_has_conflicts(indexHandle))
+                {
+                    List<Conflict> conflicts = new List<Conflict>();
+                    Conflict conflict;
+                    using (ConflictIteratorHandle iterator = Proxy.git_index_conflict_iterator_new(indexHandle))
+                    {
+                        while ((conflict = Proxy.git_index_conflict_next(iterator)) != null)
+                        {
+                            conflicts.Add(conflict);
+                        }
+                    }
+                    revertTreeResult = new MergeTreeResult(conflicts);
+                }
+                else
+                {
+                    var treeId = Proxy.git_index_write_tree_to(indexHandle, repo.Handle);
+                    revertTreeResult = new MergeTreeResult(this.repo.Lookup<Tree>(treeId));
+                }
+
+                return revertTreeResult;
+            }
         }
     }
 }

@@ -97,42 +97,33 @@ namespace LibGit2Sharp
         /// <param name="path">The file's path.</param>
         /// <param name="filter">The options used to control which commits will be returned.</param>
         /// <returns>A list of file history entries, ready to be enumerated.</returns>
+        [Obsolete("This method is deprecated. Please use the overload which take LibGit2Sharp.CommitFilter")]
         public IEnumerable<LogEntry> QueryBy(string path, FollowFilter filter)
         {
             Ensure.ArgumentNotNull(path, "path");
             Ensure.ArgumentNotNull(filter, "filter");
 
-            return new FileHistory(repo, path, new CommitFilter { SortBy = filter.SortBy });
+            return QueryBy(path, new CommitFilter { SortBy = filter.SortBy });
         }
 
         /// <summary>
-        /// Find the best possible merge base given two <see cref="Commit"/>s.
+        /// Returns the list of commits of the repository representing the history of a file beyond renames.
         /// </summary>
-        /// <param name="first">The first <see cref="Commit"/>.</param>
-        /// <param name="second">The second <see cref="Commit"/>.</param>
-        /// <returns>The merge base or null if none found.</returns>
-        [Obsolete("This method will be removed in the next release. Please use ObjectDatabase.FindMergeBase() instead.")]
-        public Commit FindMergeBase(Commit first, Commit second)
+        /// <param name="path">The file's path.</param>
+        /// <param name="filter">The options used to control which commits will be returned.</param>
+        /// <returns>A list of file history entries, ready to be enumerated.</returns>
+        public IEnumerable<LogEntry> QueryBy(string path, CommitFilter filter)
         {
-            return repo.ObjectDatabase.FindMergeBase(first, second);
-        }
+            Ensure.ArgumentNotNull(path, "path");
+            Ensure.ArgumentNotNull(filter, "filter");
 
-        /// <summary>
-        /// Find the best possible merge base given two or more <see cref="Commit"/> according to the <see cref="MergeBaseFindingStrategy"/>.
-        /// </summary>
-        /// <param name="commits">The <see cref="Commit"/>s for which to find the merge base.</param>
-        /// <param name="strategy">The strategy to leverage in order to find the merge base.</param>
-        /// <returns>The merge base or null if none found.</returns>
-        [Obsolete("This method will be removed in the next release. Please use ObjectDatabase.FindMergeBase() instead.")]
-        public Commit FindMergeBase(IEnumerable<Commit> commits, MergeBaseFindingStrategy strategy)
-        {
-            return repo.ObjectDatabase.FindMergeBase(commits, strategy);
+            return new FileHistory(repo, path, filter);
         }
 
         private class CommitEnumerator : IEnumerator<Commit>
         {
             private readonly Repository repo;
-            private readonly RevWalkerSafeHandle handle;
+            private readonly RevWalkerHandle handle;
             private ObjectId currentOid;
 
             public CommitEnumerator(Repository repo, CommitFilter filter)
@@ -191,7 +182,7 @@ namespace LibGit2Sharp
                 handle.SafeDispose();
             }
 
-            private delegate void HidePushSignature(RevWalkerSafeHandle handle, ObjectId id);
+            private delegate void HidePushSignature(RevWalkerHandle handle, ObjectId id);
 
             private void InternalHidePush(IList<object> identifier, HidePushSignature hidePush)
             {
