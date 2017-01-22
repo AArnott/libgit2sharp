@@ -149,10 +149,10 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 foreach (Commit commit in repo.Commits.QueryBy(new CommitFilter
-                                                                    {
-                                                                        IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
-                                                                        SortBy = CommitSortStrategies.Time | CommitSortStrategies.Reverse
-                                                                    }))
+                {
+                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
+                    SortBy = CommitSortStrategies.Time | CommitSortStrategies.Reverse
+                }))
                 {
                     Assert.NotNull(commit);
                     Assert.True(commit.Sha.StartsWith(reversedShas[count]));
@@ -169,10 +169,10 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 List<Commit> commits = repo.Commits.QueryBy(new CommitFilter
-                                                                {
-                                                                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
-                                                                    SortBy = CommitSortStrategies.Time | CommitSortStrategies.Reverse
-                                                                }).ToList();
+                {
+                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
+                    SortBy = CommitSortStrategies.Time | CommitSortStrategies.Reverse
+                }).ToList();
                 foreach (Commit commit in commits)
                 {
                     Assert.NotNull(commit);
@@ -215,10 +215,10 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 foreach (Commit commit in repo.Commits.QueryBy(new CommitFilter
-                                                                    {
-                                                                        IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
-                                                                        SortBy = CommitSortStrategies.Time
-                                                                    }))
+                {
+                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
+                    SortBy = CommitSortStrategies.Time
+                }))
                 {
                     Assert.NotNull(commit);
                     Assert.True(commit.Sha.StartsWith(expectedShas[count]));
@@ -235,10 +235,10 @@ namespace LibGit2Sharp.Tests
             using (var repo = new Repository(path))
             {
                 List<Commit> commits = repo.Commits.QueryBy(new CommitFilter
-                                                                {
-                                                                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
-                                                                    SortBy = CommitSortStrategies.Topological
-                                                                }).ToList();
+                {
+                    IncludeReachableFrom = "a4a7dce85cf63874e984719f4fdd239f5145052f",
+                    SortBy = CommitSortStrategies.Topological
+                }).ToList();
                 foreach (Commit commit in commits)
                 {
                     Assert.NotNull(commit);
@@ -330,9 +330,12 @@ namespace LibGit2Sharp.Tests
         public void CanEnumerateCommitsFromMixedStartingPoints()
         {
             AssertEnumerationOfCommits(
-                repo => new CommitFilter { IncludeReachableFrom = new object[] { repo.Branches["br2"],
+                repo => new CommitFilter
+                {
+                    IncludeReachableFrom = new object[] { repo.Branches["br2"],
                                                             "refs/heads/master",
-                                                            new ObjectId("e90810b8df3e80c413d903f631643c716887138d") } },
+                                                            new ObjectId("e90810b8df3e80c413d903f631643c716887138d") }
+                },
                 new[]
                     {
                         "4c062a6", "e90810b", "6dcf9bf", "a4a7dce",
@@ -388,9 +391,9 @@ namespace LibGit2Sharp.Tests
         {
             AssertEnumerationOfCommits(
                 repo => new CommitFilter
-                    {
-                        IncludeReachableFrom = repo.Refs.OrderBy(r => r.CanonicalName, StringComparer.Ordinal),
-                    },
+                {
+                    IncludeReachableFrom = repo.Refs.OrderBy(r => r.CanonicalName, StringComparer.Ordinal),
+                },
                 new[]
                     {
                         "44d5d18", "bb65291", "532740a", "503a16f", "3dfd6fd",
@@ -839,6 +842,32 @@ namespace LibGit2Sharp.Tests
         }
 
         [Fact]
+        public void CommitLeavesIndexIntact()
+        {
+            string repoPath = InitNewRepository();
+
+            const string fileName = "a";
+            string filePath = Path.Combine(Path.GetDirectoryName(repoPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "a");
+            using (var repo = new Repository(repoPath))
+            {
+                File.WriteAllText(filePath, "first");
+                repo.Index.Add(fileName);
+                repo.Commit("first commit", Constants.Signature, Constants.Signature);
+
+                File.WriteAllText(filePath, "second");
+                repo.Stage(fileName);
+                repo.Commit("second commit", Constants.Signature, Constants.Signature);
+
+                File.WriteAllText(filePath, "third");
+                repo.Index.Add(fileName);
+                repo.Commit("second commit", Constants.Signature, Constants.Signature);
+
+                repo.Reset(ResetMode.Mixed, repo.Head.Commits.Skip(1).First());
+                Assert.Equal(2, repo.Head.Commits.Count());
+            }
+        }
+
+        [Fact]
         public void CanNotAmendAnEmptyRepository()
         {
             string repoPath = InitNewRepository();
@@ -859,21 +888,21 @@ namespace LibGit2Sharp.Tests
                 const string parentSha = "5b5b025afb0b4c913b4c338a42934a3863bf3644";
 
                 var filter = new CommitFilter
-                                 {
-                                     /* Revwalk from all the refs (git log --all) ... */
-                                     IncludeReachableFrom = repo.Refs,
+                {
+                    /* Revwalk from all the refs (git log --all) ... */
+                    IncludeReachableFrom = repo.Refs,
 
-                                     /* ... and stop when the parent is reached */
-                                     ExcludeReachableFrom = parentSha
-                                 };
+                    /* ... and stop when the parent is reached */
+                    ExcludeReachableFrom = parentSha
+                };
 
                 var commits = repo.Commits.QueryBy(filter);
 
                 var children = from c in commits
-                            from p in c.Parents
-                            let pId = p.Id
-                            where pId.Sha == parentSha
-                            select c;
+                               from p in c.Parents
+                               let pId = p.Id
+                               where pId.Sha == parentSha
+                               select c;
 
                 var expectedChildren = new[] { "c47800c7266a2be04c571c04d5a6614691ea99bd",
                                                 "4a202b346bb0fb0db7eff3cffeb3c70babbd2045" };
