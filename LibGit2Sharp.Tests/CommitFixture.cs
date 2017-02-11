@@ -860,9 +860,9 @@ namespace LibGit2Sharp.Tests
 
                 File.WriteAllText(filePath, "third");
                 Commands.Stage(repo, fileName);
-                repo.Commit("second commit", Constants.Signature, Constants.Signature);
+                repo.Commit("third commit", Constants.Signature, Constants.Signature);
 
-                repo.Reset(ResetMode.Mixed, repo.Head.Commits.Skip(1).First());
+                repo.Reset(ResetMode.Mixed, repo.Head.Tip.Parents.Single());
                 Assert.Equal(2, repo.Head.Commits.Count());
             }
         }
