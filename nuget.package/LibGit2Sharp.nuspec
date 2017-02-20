@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/01/nuspec.xsd">
   <metadata minClientVersion="2.7">
-    <id>LibGit2Sharp</id>
+    <id>LibGit2Sharp.Portable</id>
     <version>$version$</version>
     <authors>LibGit2Sharp contributors</authors>
     <owners>LibGit2Sharp contributors</owners>
