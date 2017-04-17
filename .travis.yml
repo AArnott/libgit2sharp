@@ -38,6 +38,7 @@ branches:
  only:
    - master
    - /^maint.*/
+   - portable-mono
 
 # Notify of build changes
 notifications:
