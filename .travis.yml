@@ -10,6 +10,14 @@ os:
  - osx
  - linux
 
+# Setting LD_LIBRARY_PATH to the current working directory is needed to run
+# the tests successfully in linux. Without this, mono can't find libgit when
+# the libgit2sharp assembly has been shadow copied. OS X includes the current
+# working directory in its library search path, so it works without this value.
+env:
+ global:
+  - LD_LIBRARY_PATH=.
+
 before_install:
  - date -u
  - uname -a
@@ -18,9 +26,12 @@ before_install:
 install:
  - git fetch --unshallow
 
-# Build libgit2, LibGit2Sharp and run the tests
+# On linux we don't pack because we can't build for net40.
+# We just build for CoreCLR and run tests for it.
 script:
- - ./build.libgit2sharp.sh 'LEAKS_IDENTIFYING'
+ - dotnet restore
+ - dotnet build LibGit2Sharp.Tests -c release -f netcoreapp1.0 /property:ExtraDefine="LEAKS_IDENTIFYING" /fl /flp:verbosity=detailed
+ - dotnet test LibGit2Sharp.Tests/LibGit2Sharp.Tests.csproj -c release -f netcoreapp1.0 --no-build
 
 # Only watch the development branch
 branches:
