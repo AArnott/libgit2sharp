@@ -17,6 +17,7 @@ before_install:
 
 install:
  - git fetch --unshallow
+ - apt install msbuild
 
 # Build libgit2, LibGit2Sharp and run the tests
 script:
