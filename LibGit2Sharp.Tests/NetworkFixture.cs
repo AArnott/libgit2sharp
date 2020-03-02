@@ -179,10 +179,11 @@ namespace LibGit2Sharp.Tests
             }
         }
 
-        [Fact]
-        public void CanPullIntoEmptyRepo()
+        [Theory]
+        [InlineData("http://github.com/libgit2/TestGitRepository")]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git")]
+        public void CanPullIntoEmptyRepo(string url)
         {
-            string url = "https://github.com/libgit2/TestGitRepository";
             string remoteName = "origin";
             string repoPath = InitNewRepository();
 

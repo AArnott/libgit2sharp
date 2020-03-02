@@ -176,11 +176,12 @@ namespace LibGit2Sharp.Tests
             Assert.Equal(FileAttributes.Hidden, (attribs & FileAttributes.Hidden));
         }
 
-        [Fact]
-        public void CanFetchFromRemoteByName()
+        [Theory]
+        [InlineData("http://github.com/libgit2/TestGitRepository")]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git")]
+        public void CanFetchFromRemoteByName(string url)
         {
             string remoteName = "testRemote";
-            string url = "http://github.com/libgit2/TestGitRepository";
 
             string repoPath = InitNewRepository();
 

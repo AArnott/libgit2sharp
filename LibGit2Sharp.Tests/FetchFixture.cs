@@ -13,6 +13,8 @@ namespace LibGit2Sharp.Tests
         private const string remoteName = "testRemote";
 
         [Theory]
+        [InlineData("http://gitlab.com/AArnott/testgitrepository.git")]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git")]
         [InlineData("http://github.com/libgit2/TestGitRepository")]
         [InlineData("https://github.com/libgit2/TestGitRepository")]
         [InlineData("git://github.com/libgit2/TestGitRepository.git")]
@@ -115,6 +117,8 @@ namespace LibGit2Sharp.Tests
         }
 
         [Theory]
+        [InlineData("http://gitlab.com/AArnott/testgitrepository.git", "test-branch", "master")]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git", "master", "master")]
         [InlineData("http://github.com/libgit2/TestGitRepository", "test-branch", "master")]
         [InlineData("https://github.com/libgit2/TestGitRepository", "master", "master")]
         [InlineData("git://github.com/libgit2/TestGitRepository.git", "master", "first-merge")]
@@ -162,13 +166,14 @@ namespace LibGit2Sharp.Tests
         }
 
         [Theory]
-        [InlineData(TagFetchMode.All, 4)]
-        [InlineData(TagFetchMode.None, 0)]
-        [InlineData(TagFetchMode.Auto, 3)]
-        public void FetchRespectsConfiguredAutoTagSetting(TagFetchMode tagFetchMode, int expectedTagCount)
+        [InlineData("http://github.com/libgit2/TestGitRepository", TagFetchMode.All, 4)]
+        [InlineData("http://github.com/libgit2/TestGitRepository", TagFetchMode.None, 0)]
+        [InlineData("http://github.com/libgit2/TestGitRepository", TagFetchMode.Auto, 3)]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git", TagFetchMode.All, 4)]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git", TagFetchMode.None, 0)]
+        [InlineData("https://gitlab.com/AArnott/testgitrepository.git", TagFetchMode.Auto, 3)]
+        public void FetchRespectsConfiguredAutoTagSetting(string url, TagFetchMode tagFetchMode, int expectedTagCount)
         {
-            string url = "http://github.com/libgit2/TestGitRepository";
-
             string path = InitNewRepository();
 
             using (var repo = new Repository(path))
